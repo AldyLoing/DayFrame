@@ -160,6 +160,20 @@ export async function getDailySummariesByDateRange(userId: string, startDate: Da
   return (data as DailySummary[]) || []
 }
 
+export async function getRecentSummaries(userId: string, limit: number = 10) {
+  const supabase = await getSupabaseServer()
+
+  const { data, error } = await supabase
+    .from('daily_summaries')
+    .select('*')
+    .eq('user_id', userId)
+    .order('summary_date', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return (data as DailySummary[]) || []
+}
+
 export async function getRecentDailySummaries(userId: string, limit: number = 7) {
   const supabase = await getSupabaseServer()
 

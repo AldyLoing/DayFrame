@@ -36,6 +36,7 @@ export default function ChatPage() {
       const response = await fetch('/api/chat/history?limit=20')
       if (response.ok) {
         const history: ChatHistory[] = await response.json()
+        console.log('Chat history loaded:', history)
         const historyMessages: Message[] = history
           .reverse()
           .flatMap((item) => [
@@ -52,6 +53,7 @@ export default function ChatPage() {
               timestamp: new Date(item.created_at),
             },
           ])
+        console.log('Messages with IDs:', historyMessages.map(m => ({ role: m.role, hasId: !!m.id })))
         setMessages(historyMessages)
       }
     } catch (error) {
@@ -167,10 +169,10 @@ export default function ChatPage() {
               key={index}
               className={`flex ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
-              } group`}
+              }`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 relative ${
+                className={`max-w-[80%] rounded-lg p-4 relative group ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-white border border-border'
@@ -179,7 +181,7 @@ export default function ChatPage() {
                 {message.id && message.role === 'user' && (
                   <button
                     onClick={() => handleDelete(message.id!)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 text-lg font-bold flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10"
                     title="Hapus pesan"
                   >
                     ×

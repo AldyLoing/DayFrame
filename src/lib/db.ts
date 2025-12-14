@@ -12,7 +12,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, su
 // =====================================================
 
 export async function createActivity(userId: string, content: string, activityDate: Date) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('activities')
@@ -30,7 +30,7 @@ export async function createActivity(userId: string, content: string, activityDa
 }
 
 export async function getActivitiesByDate(userId: string, date: Date) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
   const dateStr = format(date, 'yyyy-MM-dd')
 
   const { data, error } = await supabase
@@ -46,7 +46,7 @@ export async function getActivitiesByDate(userId: string, date: Date) {
 }
 
 export async function getActivitiesByDateRange(userId: string, startDate: Date, endDate: Date) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('activities')
@@ -62,7 +62,7 @@ export async function getActivitiesByDateRange(userId: string, startDate: Date, 
 }
 
 export async function getRecentActivities(userId: string, limit: number = 50) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('activities')
@@ -77,7 +77,7 @@ export async function getRecentActivities(userId: string, limit: number = 50) {
 }
 
 export async function updateActivity(activityId: string, content: string) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('activities')
@@ -91,7 +91,7 @@ export async function updateActivity(activityId: string, content: string) {
 }
 
 export async function softDeleteActivity(activityId: string) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { error } = await supabase
     .from('activities')
@@ -112,7 +112,7 @@ export async function createDailySummary(
   aiModel: string,
   tokenCount?: number
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('daily_summaries')
@@ -131,7 +131,7 @@ export async function createDailySummary(
 }
 
 export async function getDailySummary(userId: string, date: Date) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
   const dateStr = format(date, 'yyyy-MM-dd')
 
   const { data, error } = await supabase
@@ -146,7 +146,7 @@ export async function getDailySummary(userId: string, date: Date) {
 }
 
 export async function getDailySummariesByDateRange(userId: string, startDate: Date, endDate: Date) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('daily_summaries')
@@ -161,7 +161,7 @@ export async function getDailySummariesByDateRange(userId: string, startDate: Da
 }
 
 export async function getRecentDailySummaries(userId: string, limit: number = 7) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('daily_summaries')
@@ -187,7 +187,7 @@ export async function createPeriodicReport(
   aiModel: string,
   tokenCount?: number
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('periodic_reports')
@@ -213,7 +213,7 @@ export async function getPeriodicReport(
   startDate: Date,
   endDate: Date
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('periodic_reports')
@@ -229,7 +229,7 @@ export async function getPeriodicReport(
 }
 
 export async function getPeriodicReportsByType(userId: string, reportType: ReportType, limit: number = 10) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('periodic_reports')
@@ -244,7 +244,7 @@ export async function getPeriodicReportsByType(userId: string, reportType: Repor
 }
 
 export async function getAllPeriodicReports(userId: string, limit: number = 50) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('periodic_reports')
@@ -268,7 +268,7 @@ export async function saveChatHistory(
   contextUsed: any,
   aiModel: string
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('chat_history')
@@ -287,7 +287,7 @@ export async function saveChatHistory(
 }
 
 export async function getChatHistory(userId: string, limit: number = 50) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('chat_history')
@@ -312,7 +312,7 @@ export async function createEmbedding(
   contentDate: Date,
   embedding: number[]
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('chat_embeddings')
@@ -337,7 +337,7 @@ export async function searchSimilarContent(
   threshold: number = 0.5,
   limit: number = 10
 ) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase.rpc('match_embeddings', {
     query_embedding: queryEmbedding,
@@ -355,7 +355,7 @@ export async function searchSimilarContent(
 // =====================================================
 
 export async function getProfile(userId: string) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('profiles')
@@ -368,7 +368,7 @@ export async function getProfile(userId: string) {
 }
 
 export async function createProfile(userId: string, email: string, displayName?: string) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('profiles')
@@ -385,7 +385,7 @@ export async function createProfile(userId: string, email: string, displayName?:
 }
 
 export async function updateProfile(userId: string, updates: { display_name?: string; timezone?: string; preferences?: any }) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   const { data, error } = await supabase
     .from('profiles')
@@ -403,7 +403,7 @@ export async function updateProfile(userId: string, updates: { display_name?: st
 // =====================================================
 
 export async function getUserStats(userId: string) {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
 
   // Get total activities
   const { count: totalActivities } = await supabase

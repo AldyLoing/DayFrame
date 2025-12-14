@@ -7,8 +7,8 @@ import type { Database } from '@/types/database'
 /**
  * Get Supabase client for Server Components
  */
-export function getSupabaseServer() {
-  const cookieStore = cookies()
+export async function getSupabaseServer() {
+  const cookieStore = await cookies()
   return createServerComponentClient<Database>({ cookies: () => cookieStore })
 }
 
@@ -40,7 +40,7 @@ export function getSupabaseAdmin() {
  * Get current user from server
  */
 export async function getCurrentUser() {
-  const supabase = getSupabaseServer()
+  const supabase = await getSupabaseServer()
   const {
     data: { user },
     error,

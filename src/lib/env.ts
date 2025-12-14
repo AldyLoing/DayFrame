@@ -1,5 +1,5 @@
-# Environment configuration for TypeScript
-# This file provides type-safe access to environment variables
+// Environment configuration for TypeScript
+// This file provides type-safe access to environment variables
 
 export const env = {
   // Supabase

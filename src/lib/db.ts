@@ -442,3 +442,18 @@ export async function getUserStats(userId: string) {
     activitiesThisWeek: activitiesThisWeek || 0,
   }
 }
+
+/**
+ * Delete a chat message
+ */
+export async function deleteChatMessage(userId: string, chatId: string) {
+  const supabase = await getSupabaseServer()
+
+  const { error } = await supabase
+    .from('chat_history')
+    .delete()
+    .eq('id', chatId)
+    .eq('user_id', userId)
+
+  if (error) throw error
+}

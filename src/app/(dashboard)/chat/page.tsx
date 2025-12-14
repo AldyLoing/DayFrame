@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import type { ChatHistory } from '@/types/database'
 
 interface Message {
+  id?: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
@@ -39,11 +40,13 @@ export default function ChatPage() {
           .reverse()
           .flatMap((item) => [
             {
+              id: item.id,
               role: 'user' as const,
               content: item.question,
               timestamp: new Date(item.created_at),
             },
             {
+              id: item.id,
               role: 'assistant' as const,
               content: item.answer,
               timestamp: new Date(item.created_at),
@@ -104,6 +107,28 @@ export default function ChatPage() {
     }
   }
 
+  const handleDelete = async (messageId: string) => {
+    if (!confirm('Hapus pesan ini? Ini akan menghapus pertanyaan dan jawaban terkait.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/chat?id=${messageId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Remove both user and assistant messages with this ID
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
+      } else {
+        throw new Error('Failed to delete message')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Gagal menghapus pesan. Silakan coba lagi.')
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
       <div className="mb-6">
@@ -142,15 +167,24 @@ export default function ChatPage() {
               key={index}
               className={`flex ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              } group`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 ${
+                className={`max-w-[80%] rounded-lg p-4 relative ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-white border border-border'
                 }`}
               >
+                {message.id && message.role === 'user' && (
+                  <button
+                    onClick={() => handleDelete(message.id!)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                    title="Hapus pesan"
+                  >
+                    ×
+                  </button>
+                )}
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
                   {message.content}
                 </p>

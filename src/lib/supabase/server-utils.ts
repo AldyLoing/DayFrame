@@ -1,23 +1,42 @@
 // Server-side utilities (ONLY import in Server Components or API routes)
-export { createClient as createServerClient, createAdminClient, createAdminClient as getSupabaseAdmin } from './server'
+// All functions use dynamic imports to prevent next/headers from being bundled
 
-// Legacy compatibility
-export { createClient as getSupabaseServer } from './server'
-
-// Helper functions (server-side only)
-export async function getCurrentUser() {
+/**
+ * Get Supabase server client - use in API routes and Server Components
+ */
+export async function getSupabaseServer() {
   const { createClient } = await import('./server')
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  return createClient()
+}
 
-  if (error || !user) {
+/**
+ * Get Supabase admin client - bypasses RLS, use with caution
+ */
+export async function getSupabaseAdmin() {
+  const { createAdminClient } = await import('./server')
+  return createAdminClient()
+}
+
+// Aliases for compatibility
+export const createServerClient = getSupabaseServer
+
+/**
+ * Get current authenticated user - safe to call, returns null if not authenticated
+ */
+export async function getCurrentUser() {
+  try {
+    const supabase = await getSupabaseServer()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      return null
+    }
+
+    return user
+  } catch {
+    // During build/prerender, cookies() may not be available
     return null
   }
-
-  return user
 }
 
 export async function isAuthenticated() {

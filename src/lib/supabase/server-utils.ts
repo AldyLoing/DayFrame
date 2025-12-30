@@ -7,7 +7,7 @@ export { createClient as getSupabaseServer } from './server'
 // Helper functions (server-side only)
 export async function getCurrentUser() {
   const { createClient } = await import('./server')
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
     error,

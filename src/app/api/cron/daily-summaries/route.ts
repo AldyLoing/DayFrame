@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase/server-utils'
 import { generateSummary } from '@/lib/openrouter'
 import {
   DAILY_SUMMARY_SYSTEM_PROMPT,

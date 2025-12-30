@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase/server-utils'
 import { searchSimilarContent } from '@/lib/db'
 import { generateEmbedding } from '@/lib/openrouter'
 

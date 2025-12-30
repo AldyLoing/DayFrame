@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase/server-utils'
 import { getDailySummary, createDailySummary, getActivitiesByDate } from '@/lib/db'
 import { generateSummary } from '@/lib/openrouter'
 import {

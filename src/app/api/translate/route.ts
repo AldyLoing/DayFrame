@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase/server-utils'
 import { generateChatResponse } from '@/lib/openrouter'
 
 export async function POST(request: NextRequest) {

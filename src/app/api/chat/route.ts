@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase/server-utils'
 import { saveChatHistory } from '@/lib/db'
 import { generateChatResponse, generateEmbedding } from '@/lib/openrouter'
 import { CHAT_AGENT_SYSTEM_PROMPT, createChatPrompt } from '@/lib/prompts'

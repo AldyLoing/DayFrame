@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/supabase/server-utils'
 import { getUserStats, getRecentActivities, getRecentDailySummaries } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { StatCard } from '@/components/StatCard'

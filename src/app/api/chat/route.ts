@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       console.log('⚠️  AI service unavailable:', aiError)
       console.log('📝 Creating intelligent fallback response with', relevantContext.length, 'context items')
       
-      // Intelligent Fallback: Analyze and respond based on question intent
+      // Intelligent Fallback: Deep analysis and contextual responses
       
       if (relevantContext.length === 0) {
         answer = `Saya belum menemukan aktivitas atau ringkasan dalam log Anda.
@@ -123,86 +123,332 @@ Untuk memulai:
       } else {
         const activities = relevantContext.filter(c => c.type === 'activity')
         const summaries = relevantContext.filter(c => c.type === 'summary')
-        const today = new Date().toISOString().split('T')[0]
-        const todayActivities = activities.filter(a => a.date === today)
+        const today = new Date()
+        const todayStr = today.toISOString().split('T')[0]
+        const yesterdayStr = new Date(today.getTime() - 86400000).toISOString().split('T')[0]
+        const lastWeekStr = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]
+        const lastMonthStr = new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0]
+        
+        const todayActivities = activities.filter(a => a.date === todayStr)
+        const yesterdayActivities = activities.filter(a => a.date === yesterdayStr)
+        const lastWeekActivities = activities.filter(a => a.date >= lastWeekStr)
+        const lastMonthActivities = activities.filter(a => a.date >= lastMonthStr)
+        
         const questionLower = question.toLowerCase()
         
-        // Detect question intent
-        const isGreeting = /^(hai|halo|hi|hello|hey|test|tes)/i.test(questionLower)
-        const isAskingAboutToday = /hari ini|today|kemarin|yesterday/i.test(questionLower)
+        // Advanced intent detection
+        const isGreeting = /^(hai|halo|hi|hello|hey|test|tes)$/i.test(questionLower)
+        const isAskingAboutToday = /(hari ini|today)/i.test(questionLower)
+        const isAskingAboutYesterday = /(kemarin|yesterday)/i.test(questionLower)
+        const isAskingAboutWeek = /(minggu|week|7 hari)/i.test(questionLower)
+        const isAskingAboutMonth = /(bulan|month|30 hari)/i.test(questionLower)
         const isAskingProgress = /progress|kemajuan|perkembangan|bagaimana/i.test(questionLower)
         const isAskingCount = /berapa|how many|jumlah|total/i.test(questionLower)
+        const isAskingTrend = /trend|tren|perubahan|naik|turun/i.test(questionLower)
+        const isAskingSummary = /ringkas|summary|rangkum|kesimpulan/i.test(questionLower)
+        
+        // Helper: Calculate activity keywords
+        const extractKeywords = (acts: typeof activities) => {
+          const text = acts.map(a => a.content.toLowerCase()).join(' ')
+          const words = text.match(/\b\w{5,}\b/g) || []
+          const freq: Record<string, number> = {}
+          words.forEach(w => freq[w] = (freq[w] || 0) + 1)
+          return Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([word]) => word)
+        }
         
         // Generate intelligent response based on intent
         if (isGreeting) {
-          answer = `Halo! 👋 Saya asisten AI Anda untuk DayFrame.\n\n`
-          answer += `📊 Saat ini Anda memiliki:\n`
-          answer += `• ${todayActivities.length} aktivitas hari ini\n`
-          answer += `• ${activities.length - todayActivities.length} aktivitas dari hari lainnya\n`
-          answer += `• ${summaries.length} ringkasan harian yang telah dibuat\n\n`
-          answer += `Silakan tanyakan apa saja tentang aktivitas Anda, misalnya:\n`
-          answer += `• "Apa yang saya lakukan hari ini?"\n`
-          answer += `• "Berapa total aktivitas saya?"\n`
-          answer += `• "Bagaimana progress saya minggu ini?"`
-        } else if (isAskingAboutToday && todayActivities.length > 0) {
-          answer = `📅 **Aktivitas Hari Ini (${todayActivities.length} aktivitas):**\n\n`
-          todayActivities.forEach((act, idx) => {
-            answer += `${idx + 1}. ${act.content}\n\n`
-          })
-          if (summaries.length > 0) {
-            const latestSummary = summaries[0]
-            answer += `\n💡 **Insight:** Anda sudah membuat ${summaries.length} ringkasan. `
-            answer += `Terus konsisten mencatat aktivitas untuk tracking yang lebih baik!`
-          }
-        } else if (isAskingCount) {
-          answer = `📊 **Statistik Aktivitas Anda:**\n\n`
-          answer += `• Total aktivitas tercatat: **${activities.length}** aktivitas\n`
-          answer += `• Aktivitas hari ini: **${todayActivities.length}** aktivitas\n`
-          answer += `• Aktivitas hari lainnya: **${activities.length - todayActivities.length}** aktivitas\n`
-          answer += `• Ringkasan yang dibuat: **${summaries.length}** ringkasan\n\n`
+          answer = `Halo! 👋 Saya asisten AI DayFrame Anda.\n\n`
+          answer += `📊 **Status Aktivitas Anda:**\n`
+          answer += `• Hari ini: ${todayActivities.length} aktivitas\n`
+          answer += `• Kemarin: ${yesterdayActivities.length} aktivitas\n`
+          answer += `• 7 hari terakhir: ${lastWeekActivities.length} aktivitas\n`
+          answer += `• Total keseluruhan: ${activities.length} aktivitas\n`
+          answer += `• Ringkasan dibuat: ${summaries.length} ringkasan\n\n`
+          
           const avgPerDay = Math.round(activities.length / Math.max(summaries.length, 1))
-          answer += `📈 Rata-rata ${avgPerDay} aktivitas per hari. `
-          if (avgPerDay >= 3) {
-            answer += `Produktivitas Anda sangat baik! 🎉`
+          answer += `📈 **Insight:** Rata-rata Anda mencatat ${avgPerDay} aktivitas per hari. `
+          
+          if (avgPerDay >= 5) {
+            answer += `Luar biasa! Produktivitas Anda sangat tinggi! 🎉`
+          } else if (avgPerDay >= 3) {
+            answer += `Bagus! Terus pertahankan konsistensi ini! 👍`
           } else {
             answer += `Coba tingkatkan pencatatan aktivitas untuk insight yang lebih baik.`
           }
-        } else if (isAskingProgress) {
-          answer = `📈 **Progress & Perkembangan Anda:**\n\n`
-          if (todayActivities.length > 0) {
-            answer += `Hari ini Anda sudah mencatat ${todayActivities.length} aktivitas. `
-          }
-          answer += `Total ${activities.length} aktivitas tercatat dengan ${summaries.length} ringkasan.\n\n`
           
-          if (todayActivities.length > 0) {
-            answer += `**Aktivitas Terbaru:**\n${todayActivities[0].content.substring(0, 200)}${todayActivities[0].content.length > 200 ? '...' : ''}\n\n`
+          answer += `\n\n💡 **Contoh Pertanyaan:**\n`
+          answer += `• "Bagaimana progress saya minggu ini?"\n`
+          answer += `• "Apa yang saya lakukan kemarin?"\n`
+          answer += `• "Berapa total aktivitas saya bulan ini?"\n`
+          answer += `• "Apa trend aktivitas saya?"`
+          
+        } else if (isAskingAboutWeek || (isAskingProgress && /minggu|week/i.test(questionLower))) {
+          answer = `📈 **Progress & Analisis Minggu Ini:**\n\n`
+          
+          // Calculate stats for last 7 days
+          const last7Days = Array.from({length: 7}, (_, i) => {
+            const date = new Date(today.getTime() - i * 86400000)
+            const dateStr = date.toISOString().split('T')[0]
+            const acts = activities.filter(a => a.date === dateStr)
+            return { date: dateStr, count: acts.length, activities: acts }
+          }).reverse()
+          
+          answer += `**Total aktivitas 7 hari terakhir:** ${lastWeekActivities.length} aktivitas\n`
+          answer += `**Rata-rata per hari:** ${Math.round(lastWeekActivities.length / 7)} aktivitas\n\n`
+          
+          // Daily breakdown
+          answer += `**Breakdown Harian:**\n`
+          last7Days.forEach(day => {
+            const dayName = new Date(day.date).toLocaleDateString('id-ID', { weekday: 'short' })
+            const bar = '█'.repeat(Math.min(day.count, 10))
+            answer += `• ${dayName} (${day.date}): ${bar} ${day.count} aktivitas\n`
+          })
+          
+          // Find most productive day
+          const maxDay = last7Days.reduce((max, day) => day.count > max.count ? day : max, last7Days[0])
+          if (maxDay.count > 0) {
+            answer += `\n🏆 **Hari paling produktif:** ${new Date(maxDay.date).toLocaleDateString('id-ID', { weekday: 'long' })} dengan ${maxDay.count} aktivitas\n`
           }
           
-          answer += `💪 Teruskan konsistensi Anda dalam mencatat aktivitas untuk tracking yang lebih akurat!`
+          // Activity samples
+          if (lastWeekActivities.length > 0) {
+            answer += `\n**Contoh Aktivitas Minggu Ini:**\n`
+            lastWeekActivities.slice(0, 3).forEach((act, idx) => {
+              const preview = act.content.substring(0, 120)
+              answer += `${idx + 1}. [${act.date}] ${preview}${act.content.length > 120 ? '...' : ''}\n\n`
+            })
+          }
+          
+          // Keywords analysis
+          const keywords = extractKeywords(lastWeekActivities)
+          if (keywords.length > 0) {
+            answer += `\n🔍 **Tema/Topik Utama:** ${keywords.join(', ')}\n`
+          }
+          
+          // Trend analysis
+          const firstHalf = last7Days.slice(0, 3).reduce((sum, d) => sum + d.count, 0)
+          const secondHalf = last7Days.slice(4, 7).reduce((sum, d) => sum + d.count, 0)
+          
+          if (secondHalf > firstHalf * 1.2) {
+            answer += `\n📊 **Trend:** Aktivitas Anda meningkat di akhir minggu! Pertahankan momentum! 🚀`
+          } else if (secondHalf < firstHalf * 0.8) {
+            answer += `\n📊 **Trend:** Aktivitas menurun di akhir minggu. Mungkin perlu lebih fokus? 🤔`
+          } else {
+            answer += `\n📊 **Trend:** Aktivitas Anda stabil sepanjang minggu. Konsistensi yang bagus! ✨`
+          }
+          
+          answer += `\n\n💪 **Rekomendasi:** ${lastWeekActivities.length >= 21 ? 'Luar biasa! Terus pertahankan produktivitas tinggi!' : lastWeekActivities.length >= 14 ? 'Bagus! Coba tingkatkan sedikit lagi untuk hasil optimal.' : 'Coba targetkan minimal 3 aktivitas per hari untuk tracking yang lebih baik.'}`
+          
+        } else if (isAskingAboutMonth || (isAskingProgress && /bulan|month/i.test(questionLower))) {
+          answer = `📊 **Progress & Analisis Bulan Ini:**\n\n`
+          
+          const totalDays = Math.ceil((today.getTime() - new Date(lastMonthStr).getTime()) / 86400000)
+          const avgPerDay = Math.round(lastMonthActivities.length / totalDays)
+          
+          answer += `**Total aktivitas 30 hari terakhir:** ${lastMonthActivities.length} aktivitas\n`
+          answer += `**Rata-rata per hari:** ${avgPerDay} aktivitas\n`
+          answer += `**Hari aktif:** ${summaries.filter(s => s.date >= lastMonthStr).length} hari (${Math.round((summaries.filter(s => s.date >= lastMonthStr).length / totalDays) * 100)}%)\n\n`
+          
+          // Weekly breakdown
+          answer += `**Breakdown Mingguan:**\n`
+          for (let i = 0; i < 4; i++) {
+            const weekStart = new Date(today.getTime() - (i * 7 + 7) * 86400000).toISOString().split('T')[0]
+            const weekEnd = new Date(today.getTime() - i * 7 * 86400000).toISOString().split('T')[0]
+            const weekActivities = activities.filter(a => a.date >= weekStart && a.date <= weekEnd)
+            answer += `• Minggu ${4-i}: ${weekActivities.length} aktivitas\n`
+          }
+          
+          // Recent activities
+          if (lastMonthActivities.length > 0) {
+            answer += `\n**Aktivitas Terkini:**\n`
+            lastMonthActivities.slice(0, 5).forEach((act, idx) => {
+              const preview = act.content.substring(0, 100)
+              answer += `${idx + 1}. [${act.date}] ${preview}${act.content.length > 100 ? '...' : ''}\n\n`
+            })
+          }
+          
+          // Keywords analysis
+          const keywords = extractKeywords(lastMonthActivities)
+          if (keywords.length > 0) {
+            answer += `\n🏷️ **Fokus Utama Bulan Ini:** ${keywords.join(', ')}\n`
+          }
+          
+          // Performance assessment
+          answer += `\n📈 **Assessment:**\n`
+          if (avgPerDay >= 5) {
+            answer += `Produktivitas Anda LUAR BIASA! 🌟 Anda konsisten mencatat detail aktivitas setiap hari.`
+          } else if (avgPerDay >= 3) {
+            answer += `Produktivitas Anda BAGUS! 👍 Tracking aktivitas sudah cukup konsisten.`
+          } else if (avgPerDay >= 1) {
+            answer += `Anda sudah memulai kebiasaan baik! 💫 Coba tingkatkan frekuensi pencatatan untuk insight lebih dalam.`
+          } else {
+            answer += `Yuk mulai lebih rajin mencatat aktivitas! 📝 Minimal 2-3 aktivitas per hari akan sangat membantu.`
+          }
+          
+        } else if (isAskingAboutYesterday) {
+          answer = `📅 **Aktivitas Kemarin (${yesterdayStr}):**\n\n`
+          
+          if (yesterdayActivities.length === 0) {
+            answer += `Tidak ada aktivitas tercatat untuk kemarin.\n\n`
+            answer += `💡 **Tip:** Anda masih bisa menambahkan aktivitas untuk tanggal sebelumnya di halaman Daily Log!`
+          } else {
+            answer += `Total: ${yesterdayActivities.length} aktivitas tercatat\n\n`
+            yesterdayActivities.forEach((act, idx) => {
+              answer += `${idx + 1}. ${act.content}\n\n`
+            })
+            
+            answer += `\n✅ **Kesimpulan:** Kemarin Anda produktif dengan ${yesterdayActivities.length} aktivitas. `
+            if (yesterdayActivities.length > todayActivities.length) {
+              answer += `Kemarin lebih produktif dari hari ini. Ayo kejar!`
+            } else {
+              answer += `Hari ini lebih produktif, pertahankan!`
+            }
+          }
+          
+        } else if (isAskingAboutToday) {
+          answer = `📅 **Aktivitas Hari Ini (${todayStr}):**\n\n`
+          
+          if (todayActivities.length === 0) {
+            answer += `Belum ada aktivitas tercatat untuk hari ini.\n\n`
+            answer += `💡 Yuk mulai catat aktivitas Anda hari ini di halaman Daily Log!`
+          } else {
+            answer += `Total: ${todayActivities.length} aktivitas\n\n`
+            todayActivities.forEach((act, idx) => {
+              answer += `${idx + 1}. ${act.content}\n\n`
+            })
+            
+            const keywords = extractKeywords(todayActivities)
+            if (keywords.length > 0) {
+              answer += `\n🎯 **Fokus hari ini:** ${keywords.join(', ')}\n`
+            }
+            
+            answer += `\n📊 **Perbandingan:**\n`
+            answer += `• Kemarin: ${yesterdayActivities.length} aktivitas\n`
+            answer += `• Rata-rata 7 hari: ${Math.round(lastWeekActivities.length / 7)} aktivitas\n\n`
+            
+            if (todayActivities.length >= Math.round(lastWeekActivities.length / 7)) {
+              answer += `✨ Anda di atas rata-rata! Produktivitas bagus!`
+            } else {
+              answer += `💪 Yuk tambah lagi beberapa aktivitas untuk mencapai target!`
+            }
+          }
+          
+        } else if (isAskingCount) {
+          answer = `📊 **Statistik Lengkap Aktivitas Anda:**\n\n`
+          answer += `**📈 Ringkasan Total:**\n`
+          answer += `• Total aktivitas tercatat: **${activities.length}** aktivitas\n`
+          answer += `• Hari aktif: **${summaries.length}** hari\n`
+          answer += `• Ringkasan dibuat: **${summaries.length}** ringkasan\n\n`
+          
+          answer += `**📅 Breakdown Periode:**\n`
+          answer += `• Hari ini: ${todayActivities.length} aktivitas\n`
+          answer += `• Kemarin: ${yesterdayActivities.length} aktivitas\n`
+          answer += `• 7 hari terakhir: ${lastWeekActivities.length} aktivitas\n`
+          answer += `• 30 hari terakhir: ${lastMonthActivities.length} aktivitas\n\n`
+          
+          answer += `**📊 Statistik Lanjutan:**\n`
+          const avgPerDay = Math.round(activities.length / Math.max(summaries.length, 1))
+          const avgPerWeek = Math.round(lastWeekActivities.length / 7)
+          const avgPerMonth = Math.round(lastMonthActivities.length / 30)
+          
+          answer += `• Rata-rata per hari (keseluruhan): ${avgPerDay} aktivitas\n`
+          answer += `• Rata-rata per hari (7 hari): ${avgPerWeek} aktivitas\n`
+          answer += `• Rata-rata per hari (30 hari): ${avgPerMonth} aktivitas\n\n`
+          
+          // Performance badge
+          if (avgPerDay >= 5) {
+            answer += `🏆 **Level:** SUPER PRODUKTIF! Anda konsisten mencatat 5+ aktivitas per hari!`
+          } else if (avgPerDay >= 3) {
+            answer += `⭐ **Level:** PRODUKTIF! Tracking aktivitas Anda sudah sangat baik!`
+          } else if (avgPerDay >= 1) {
+            answer += `💫 **Level:** PEMULA AKTIF! Terus tingkatkan konsistensi Anda!`
+          } else {
+            answer += `🌱 **Level:** MEMULAI! Yuk lebih rajin mencatat aktivitas!`
+          }
+          
+        } else if (isAskingTrend) {
+          answer = `📈 **Analisis Trend Aktivitas Anda:**\n\n`
+          
+          // Calculate weekly trends
+          const weeks = []
+          for (let i = 0; i < 4; i++) {
+            const weekStart = new Date(today.getTime() - (i * 7 + 7) * 86400000).toISOString().split('T')[0]
+            const weekEnd = new Date(today.getTime() - i * 7 * 86400000).toISOString().split('T')[0]
+            const weekActivities = activities.filter(a => a.date >= weekStart && a.date <= weekEnd)
+            weeks.push({ week: 4-i, count: weekActivities.length })
+          }
+          
+          answer += `**Trend 4 Minggu Terakhir:**\n`
+          weeks.forEach(w => {
+            const bar = '▓'.repeat(Math.floor(w.count / 5)) + '░'.repeat(Math.max(0, 10 - Math.floor(w.count / 5)))
+            answer += `Minggu ${w.week}: ${bar} ${w.count} aktivitas\n`
+          })
+          
+          // Calculate trend direction
+          const firstWeek = weeks[0].count
+          const lastWeek = weeks[3].count
+          const trendPercent = Math.round(((lastWeek - firstWeek) / Math.max(firstWeek, 1)) * 100)
+          
+          answer += `\n📊 **Analisis Trend:**\n`
+          if (trendPercent > 20) {
+            answer += `🚀 **NAIK ${Math.abs(trendPercent)}%** - Produktivitas Anda meningkat signifikan! Luar biasa!`
+          } else if (trendPercent > 0) {
+            answer += `📈 **NAIK ${Math.abs(trendPercent)}%** - Ada peningkatan positif. Pertahankan momentum!`
+          } else if (trendPercent < -20) {
+            answer += `📉 **TURUN ${Math.abs(trendPercent)}%** - Aktivitas menurun cukup banyak. Perlu fokus lebih?`
+          } else if (trendPercent < 0) {
+            answer += `📊 **TURUN ${Math.abs(trendPercent)}%** - Sedikit penurunan. Tetap semangat!`
+          } else {
+            answer += `➡️ **STABIL** - Konsistensi yang baik! Terus pertahankan ritme ini.`
+          }
+          
+          // Prediction
+          const projected = lastWeek + Math.round((lastWeek - firstWeek) / 3)
+          answer += `\n\n🔮 **Proyeksi Minggu Depan:** Jika trend berlanjut, Anda mungkin akan mencatat sekitar ${projected} aktivitas minggu depan.`
+          
         } else {
-          // Default: Show relevant context
-          answer = `Berdasarkan pertanyaan Anda, berikut data yang relevan:\n\n`
+          // Default: Smart contextual response
+          answer = `Berdasarkan pertanyaan Anda, berikut analisis data yang relevan:\n\n`
+          
+          answer += `📊 **Status Terkini:**\n`
+          answer += `• Total aktivitas: ${activities.length} aktivitas\n`
+          answer += `• Hari ini: ${todayActivities.length} aktivitas\n`
+          answer += `• 7 hari terakhir: ${lastWeekActivities.length} aktivitas\n`
+          answer += `• Ringkasan tersedia: ${summaries.length} ringkasan\n\n`
           
           if (todayActivities.length > 0) {
-            answer += `📅 **Aktivitas Hari Ini (${todayActivities.length}):**\n`
-            todayActivities.slice(0, 3).forEach((act, idx) => {
+            answer += `**Aktivitas Terbaru Hari Ini:**\n`
+            todayActivities.slice(0, 2).forEach((act, idx) => {
               const preview = act.content.substring(0, 150)
               answer += `${idx + 1}. ${preview}${act.content.length > 150 ? '...' : ''}\n\n`
             })
           }
           
-          if (activities.length > todayActivities.length) {
-            answer += `\n📝 **Aktivitas Sebelumnya:** ${activities.length - todayActivities.length} aktivitas dari hari lainnya\n`
+          if (lastWeekActivities.length > todayActivities.length) {
+            answer += `**Aktivitas Minggu Ini:**\n`
+            lastWeekActivities.slice(0, 3).forEach((act, idx) => {
+              const preview = act.content.substring(0, 120)
+              answer += `${idx + 1}. [${act.date}] ${preview}${act.content.length > 120 ? '...' : ''}\n\n`
+            })
           }
           
-          if (summaries.length > 0) {
-            answer += `\n✨ **Ringkasan Tersedia:** ${summaries.length} ringkasan harian telah dibuat\n`
+          const keywords = extractKeywords(lastWeekActivities)
+          if (keywords.length > 0) {
+            answer += `\n🔍 **Fokus utama minggu ini:** ${keywords.join(', ')}\n`
           }
           
-          answer += `\n💡 Coba tanyakan lebih spesifik, misalnya: "Apa yang saya lakukan hari ini?" atau "Berapa total aktivitas saya?"`
+          answer += `\n💡 **Saran pertanyaan yang bisa Anda tanyakan:**\n`
+          answer += `• "Bagaimana progress saya minggu ini?"\n`
+          answer += `• "Apa yang saya lakukan kemarin?"\n`
+          answer += `• "Berapa total aktivitas saya?"\n`
+          answer += `• "Apa trend aktivitas saya?"`
         }
         
-        answer += `\n\n⚠️ *Catatan: Sedang menggunakan mode fallback karena AI service rate limit. Untuk respons AI penuh, top-up $10 di OpenRouter untuk unlock 1000 requests/day.*`
+        answer += `\n\n⚠️ *Mode fallback aktif. Untuk analisis AI yang lebih mendalam dengan insight personalisasi, pastikan model AI berbayar sudah diaktifkan di environment variables.*`
       }
     }
 

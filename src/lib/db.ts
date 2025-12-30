@@ -1,6 +1,6 @@
 import { getSupabaseServer } from './supabase/server-utils'
-import type { Activity, DailySummary, PeriodicReport, ChatHistory, ReportType } from '@/types/database'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
+import type { Activity, DailySummary, PeriodicReport, ChatHistory, ReportType, Database } from '@/types/database'
+import { format, startOfWeek, endOfWeek } from 'date-fns'
 
 /**
  * Database query functions
@@ -14,7 +14,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, su
 export async function createActivity(userId: string, content: string, activityDate: Date) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('activities')
     .insert({
       user_id: userId,
@@ -35,7 +35,7 @@ export async function getActivitiesByDate(userId: string, date: Date) {
 
   console.log('getActivitiesByDate - userId:', userId, 'dateStr:', dateStr)
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('activities')
     .select('*')
     .eq('user_id', userId)
@@ -55,7 +55,7 @@ export async function getActivitiesByDate(userId: string, date: Date) {
 export async function getActivitiesByDateRange(userId: string, startDate: Date, endDate: Date) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('activities')
     .select('*')
     .eq('user_id', userId)
@@ -71,7 +71,7 @@ export async function getActivitiesByDateRange(userId: string, startDate: Date, 
 export async function getRecentActivities(userId: string, limit?: number) {
   const supabase = await getSupabaseServer()
 
-  let query = supabase
+  let query = (supabase as any)
     .from('activities')
     .select('*')
     .eq('user_id', userId)
@@ -91,7 +91,7 @@ export async function getRecentActivities(userId: string, limit?: number) {
 export async function updateActivity(activityId: string, content: string) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('activities')
     .update({ content })
     .eq('id', activityId)
@@ -106,7 +106,7 @@ export async function deleteActivity(activityId: string) {
   const supabase = await getSupabaseServer()
 
   // First verify the activity belongs to the current user
-  const { data: activity, error: fetchError } = await supabase
+  const { data: activity, error: fetchError } = await (supabase as any)
     .from('activities')
     .select('user_id')
     .eq('id', activityId)
@@ -118,7 +118,7 @@ export async function deleteActivity(activityId: string) {
   }
 
   // Delete using the same client (will use RLS)
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('activities')
     .delete()
     .eq('id', activityId)
@@ -142,15 +142,21 @@ export async function createDailySummary(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('daily_summaries')
-    .upsert({
-      user_id: userId,
-      summary_date: format(summaryDate, 'yyyy-MM-dd'),
-      content,
-      ai_model: aiModel,
-      token_count: tokenCount || null,
-    })
+    .upsert(
+      {
+        user_id: userId,
+        summary_date: format(summaryDate, 'yyyy-MM-dd'),
+        content,
+        ai_model: aiModel,
+        token_count: tokenCount || null,
+      },
+      {
+        onConflict: 'user_id,summary_date',
+        ignoreDuplicates: false, // Update existing record instead of ignoring
+      }
+    )
     .select()
     .single()
 
@@ -162,7 +168,7 @@ export async function getDailySummary(userId: string, date: Date) {
   const supabase = await getSupabaseServer()
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('daily_summaries')
     .select('*')
     .eq('user_id', userId)
@@ -176,7 +182,7 @@ export async function getDailySummary(userId: string, date: Date) {
 export async function getDailySummariesByDateRange(userId: string, startDate: Date, endDate: Date) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('daily_summaries')
     .select('*')
     .eq('user_id', userId)
@@ -210,7 +216,7 @@ export async function getRecentSummaries(userId: string, limit?: number) {
 export async function getRecentDailySummaries(userId: string, limit: number = 7) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('daily_summaries')
     .select('*')
     .eq('user_id', userId)
@@ -236,17 +242,23 @@ export async function createPeriodicReport(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('periodic_reports')
-    .upsert({
-      user_id: userId,
-      report_type: reportType,
-      start_date: format(startDate, 'yyyy-MM-dd'),
-      end_date: format(endDate, 'yyyy-MM-dd'),
-      content,
-      ai_model: aiModel,
-      token_count: tokenCount || null,
-    })
+    .upsert(
+      {
+        user_id: userId,
+        report_type: reportType,
+        start_date: format(startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd'),
+        content,
+        ai_model: aiModel,
+        token_count: tokenCount || null,
+      },
+      {
+        onConflict: 'user_id,report_type,start_date,end_date',
+        ignoreDuplicates: false, // Update existing record instead of ignoring
+      }
+    )
     .select()
     .single()
 
@@ -262,7 +274,7 @@ export async function getPeriodicReport(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('periodic_reports')
     .select('*')
     .eq('user_id', userId)
@@ -278,7 +290,7 @@ export async function getPeriodicReport(
 export async function getPeriodicReportsByType(userId: string, reportType: ReportType, limit: number = 10) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('periodic_reports')
     .select('*')
     .eq('user_id', userId)
@@ -293,7 +305,7 @@ export async function getPeriodicReportsByType(userId: string, reportType: Repor
 export async function getAllPeriodicReports(userId: string, limit: number = 50) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('periodic_reports')
     .select('*')
     .eq('user_id', userId)
@@ -317,7 +329,7 @@ export async function saveChatHistory(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('chat_history')
     .insert({
       user_id: userId,
@@ -325,7 +337,7 @@ export async function saveChatHistory(
       answer,
       context_used: contextUsed,
       ai_model: aiModel,
-    })
+    } as Database['public']['Tables']['chat_history']['Insert'])
     .select()
     .single()
 
@@ -336,7 +348,7 @@ export async function saveChatHistory(
 export async function getChatHistory(userId: string, limit: number = 50) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('chat_history')
     .select('*')
     .eq('user_id', userId)
@@ -361,16 +373,22 @@ export async function createEmbedding(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('chat_embeddings')
-    .upsert({
-      user_id: userId,
-      content_type: contentType,
-      content_id: contentId,
-      content_text: contentText,
-      content_date: format(contentDate, 'yyyy-MM-dd'),
-      embedding,
-    })
+    .upsert(
+      {
+        user_id: userId,
+        content_type: contentType,
+        content_id: contentId,
+        content_text: contentText,
+        content_date: format(contentDate, 'yyyy-MM-dd'),
+        embedding,
+      },
+      {
+        onConflict: 'content_type,content_id',
+        ignoreDuplicates: false, // Update existing record instead of ignoring
+      }
+    )
     .select()
     .single()
 
@@ -386,12 +404,12 @@ export async function searchSimilarContent(
 ) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase.rpc('match_embeddings', {
+  const { data, error } = await (supabase as any).rpc('match_embeddings', {
     query_embedding: queryEmbedding,
     match_user_id: userId,
     match_threshold: threshold,
     match_count: limit,
-  })
+  } as Database['public']['Functions']['match_embeddings']['Args'])
 
   if (error) throw error
   return data || []
@@ -404,7 +422,7 @@ export async function searchSimilarContent(
 export async function getProfile(userId: string) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('id', userId)
@@ -417,13 +435,13 @@ export async function getProfile(userId: string) {
 export async function createProfile(userId: string, email: string, displayName?: string) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('profiles')
     .insert({
       id: userId,
       email,
       display_name: displayName || null,
-    })
+    } as Database['public']['Tables']['profiles']['Insert'])
     .select()
     .single()
 
@@ -434,9 +452,9 @@ export async function createProfile(userId: string, email: string, displayName?:
 export async function updateProfile(userId: string, updates: { display_name?: string; timezone?: string; preferences?: any }) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('profiles')
-    .update(updates)
+    .update(updates as Database['public']['Tables']['profiles']['Update'])
     .eq('id', userId)
     .select()
     .single()
@@ -453,20 +471,20 @@ export async function getUserStats(userId: string) {
   const supabase = await getSupabaseServer()
 
   // Get total activities
-  const { count: totalActivities } = await supabase
+  const { count: totalActivities } = await (supabase as any)
     .from('activities')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('is_deleted', false)
 
   // Get total summaries
-  const { count: totalSummaries } = await supabase
+  const { count: totalSummaries } = await (supabase as any)
     .from('daily_summaries')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
 
   // Get total reports
-  const { count: totalReports } = await supabase
+  const { count: totalReports } = await (supabase as any)
     .from('periodic_reports')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -474,7 +492,7 @@ export async function getUserStats(userId: string) {
   // Get activities this week
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
   const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 })
-  const { count: activitiesThisWeek } = await supabase
+  const { count: activitiesThisWeek } = await (supabase as any)
     .from('activities')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -496,7 +514,7 @@ export async function getUserStats(userId: string) {
 export async function deleteChatMessage(userId: string, chatId: string) {
   const supabase = await getSupabaseServer()
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('chat_history')
     .delete()
     .eq('id', chatId)

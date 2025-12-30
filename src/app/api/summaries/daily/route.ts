@@ -52,10 +52,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Date required' }, { status: 400 })
     }
 
-    const date = new Date(dateStr)
+    // Parse date as UTC to avoid timezone issues
+    const date = new Date(dateStr + 'T00:00:00.000Z')
+
+    console.log('Generating summary for date:', dateStr, 'parsed as:', date.toISOString())
 
     // Get activities for the day
     const activities = await getActivitiesByDate(user.id, date)
+
+    console.log('Found activities:', activities.length)
 
     if (activities.length === 0) {
       return NextResponse.json(
@@ -77,7 +82,7 @@ export async function POST(request: NextRequest) {
     )
 
     const aiResponse = await generateSummary(prompt, DAILY_SUMMARY_SYSTEM_PROMPT)
-    const summaryContent = parseAIJsonResponse(aiResponse)
+    const summaryContent = parseAIJsonResponse(aiResponse) as any
 
     // Save summary to database
     const summary = await createDailySummary(
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Trigger embedding generation in background (don't await)
-    const summaryText = `${summaryContent.summary} ${summaryContent.highlights.join(' ')} ${summaryContent.conclusion}`
+    const summaryText = `${summaryContent?.summary || ''} ${summaryContent?.highlights?.join(' ') || ''} ${summaryContent?.conclusion || ''}`
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/embeddings/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -33,6 +33,8 @@ export async function getActivitiesByDate(userId: string, date: Date) {
   const supabase = await getSupabaseServer()
   const dateStr = format(date, 'yyyy-MM-dd')
 
+  console.log('getActivitiesByDate - userId:', userId, 'dateStr:', dateStr)
+
   const { data, error } = await supabase
     .from('activities')
     .select('*')
@@ -41,7 +43,12 @@ export async function getActivitiesByDate(userId: string, date: Date) {
     .eq('is_deleted', false)
     .order('activity_timestamp', { ascending: true })
 
-  if (error) throw error
+  if (error) {
+    console.error('getActivitiesByDate error:', error)
+    throw error
+  }
+  
+  console.log('getActivitiesByDate - found:', data?.length || 0, 'activities')
   return (data as Activity[]) || []
 }
 
@@ -61,16 +68,21 @@ export async function getActivitiesByDateRange(userId: string, startDate: Date, 
   return (data as Activity[]) || []
 }
 
-export async function getRecentActivities(userId: string, limit: number = 50) {
+export async function getRecentActivities(userId: string, limit?: number) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('activities')
     .select('*')
     .eq('user_id', userId)
     .eq('is_deleted', false)
     .order('activity_timestamp', { ascending: false })
-    .limit(limit)
+  
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   return (data as Activity[]) || []
@@ -90,15 +102,31 @@ export async function updateActivity(activityId: string, content: string) {
   return data as Activity
 }
 
-export async function softDeleteActivity(activityId: string) {
+export async function deleteActivity(activityId: string) {
   const supabase = await getSupabaseServer()
 
+  // First verify the activity belongs to the current user
+  const { data: activity, error: fetchError } = await supabase
+    .from('activities')
+    .select('user_id')
+    .eq('id', activityId)
+    .single()
+
+  if (fetchError || !activity) {
+    console.error('Activity not found:', fetchError)
+    throw new Error('Activity not found')
+  }
+
+  // Delete using the same client (will use RLS)
   const { error } = await supabase
     .from('activities')
-    .update({ is_deleted: true })
+    .delete()
     .eq('id', activityId)
 
-  if (error) throw error
+  if (error) {
+    console.error('deleteActivity error:', error)
+    throw error
+  }
 }
 
 // =====================================================
@@ -160,15 +188,20 @@ export async function getDailySummariesByDateRange(userId: string, startDate: Da
   return (data as DailySummary[]) || []
 }
 
-export async function getRecentSummaries(userId: string, limit: number = 10) {
+export async function getRecentSummaries(userId: string, limit?: number) {
   const supabase = await getSupabaseServer()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('daily_summaries')
     .select('*')
     .eq('user_id', userId)
     .order('summary_date', { ascending: false })
-    .limit(limit)
+  
+  if (limit) {
+    query = query.limit(limit)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   return (data as DailySummary[]) || []

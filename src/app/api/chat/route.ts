@@ -31,12 +31,19 @@ export async function POST(request: NextRequest) {
       const similarContent = await searchSimilarContent(
         user.id,
         queryEmbedding,
-        0.6, // Higher threshold for better relevance
-        15   // Get more results for comprehensive context
+        0.5, // Lower threshold for better recall
+        20   // Get more results for comprehensive context
       )
 
+      console.log('🔍 Vector search results:', similarContent?.length || 0)
+
+      // If no results from vector search, fall back to direct database query
+      if (!similarContent || similarContent.length === 0) {
+        throw new Error('No vector results, using fallback')
+      }
+
       // Format context for AI
-      relevantContext = similarContent.map((item) => ({
+      relevantContext = similarContent.map((item: any) => ({
         type: item.content_type as 'activity' | 'summary' | 'report',
         date: item.content_date,
         content: item.content_text,
@@ -44,17 +51,25 @@ export async function POST(request: NextRequest) {
 
       contextUsed = {
         query: question,
+        mode: 'vector',
         resultsCount: similarContent.length,
-        contentIds: similarContent.map((item) => item.content_id),
+        contentIds: similarContent.map((item: any) => item.content_id),
       }
+
+      console.log('✅ Using vector search context:', relevantContext.length, 'items')
     } catch (embeddingError) {
-      console.warn('Embeddings not available, using simple mode:', embeddingError)
-      // Fallback: Get recent activities and summaries without vector search
+      console.log('⚠️  Vector search unavailable, using direct database query')
+      // Fallback: Get recent activities and summaries from today
       const { getRecentActivities, getRecentSummaries } = await import('@/lib/db')
       const [activities, summaries] = await Promise.all([
-        getRecentActivities(user.id, 10),
-        getRecentSummaries(user.id, 5),
+        getRecentActivities(user.id, 50), // Get more activities
+        getRecentSummaries(user.id, 30),  // Get more summaries
       ])
+
+      console.log('📊 Fallback query results:', {
+        activities: activities.length,
+        summaries: summaries.length
+      })
 
       relevantContext = [
         ...activities.map((a: any) => ({
@@ -65,7 +80,7 @@ export async function POST(request: NextRequest) {
         ...summaries.map((s: any) => ({
           type: 'summary' as const,
           date: s.summary_date,
-          content: JSON.stringify(s.content),
+          content: typeof s.content === 'string' ? s.content : JSON.stringify(s.content),
         })),
       ]
 
@@ -74,15 +89,64 @@ export async function POST(request: NextRequest) {
         mode: 'fallback',
         resultsCount: relevantContext.length,
       }
+
+      console.log('✅ Using fallback context:', relevantContext.length, 'items')
     }
 
     // Generate chat response
-    const prompt = createChatPrompt(question, relevantContext)
-    const answer = await generateChatResponse(
-      question,
-      prompt,
-      CHAT_AGENT_SYSTEM_PROMPT
-    )
+    let answer: string
+    try {
+      const prompt = createChatPrompt(question, relevantContext)
+      console.log('🤖 Generating AI response with', relevantContext.length, 'context items')
+      
+      answer = await generateChatResponse(
+        question,
+        prompt,
+        CHAT_AGENT_SYSTEM_PROMPT
+      )
+      
+      console.log('✅ AI response generated successfully')
+    } catch (aiError) {
+      console.log('⚠️  AI service unavailable:', aiError)
+      console.log('📝 Using simple response with', relevantContext.length, 'context items')
+      
+      // Fallback: Create simple summary without AI
+      
+      if (relevantContext.length === 0) {
+        answer = `I don't see any activities or summaries in your logs yet. 
+
+To get started:
+1. Go to the Daily Log page
+2. Add your activities for today
+3. Generate a daily summary
+4. Then come back and ask me questions about your logged data!`
+      } else {
+        const activities = relevantContext.filter(c => c.type === 'activity')
+        const summaries = relevantContext.filter(c => c.type === 'summary')
+        const today = new Date().toISOString().split('T')[0]
+        const todayActivities = activities.filter(a => a.date === today)
+        
+        answer = `Based on your logged data, I found:\n\n`
+        
+        if (todayActivities.length > 0) {
+          answer += `📅 **Today's Activities (${todayActivities.length}):**\n`
+          todayActivities.slice(0, 5).forEach((act, idx) => {
+            const preview = act.content.substring(0, 150)
+            answer += `${idx + 1}. ${preview}${act.content.length > 150 ? '...' : ''}\n\n`
+          })
+        }
+        
+        if (activities.length > todayActivities.length) {
+          answer += `\n📝 **Previous Activities:** ${activities.length - todayActivities.length} activities from other days\n`
+        }
+        
+        if (summaries.length > 0) {
+          answer += `\n✨ **Daily Summaries:** ${summaries.length} generated summaries\n`
+        }
+        
+        answer += `\n💡 *Note: AI service is temporarily limited. The full AI assistant will provide more detailed analysis.*`
+      }
+    }
 
     // Save chat history
     await saveChatHistory(

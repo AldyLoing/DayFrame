@@ -280,7 +280,7 @@ export async function generateSummary(
   const response = await aiRouter.execute('summary', {
     messages,
     temperature: 0.7,
-    maxTokens: 2000,
+    maxTokens: 1500,
   })
 
   return response.content

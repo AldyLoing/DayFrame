@@ -63,6 +63,27 @@ export default function DailyLogPage() {
     }
   }
 
+  const handleDeleteActivity = async (activityId: string) => {
+    if (!confirm('Are you sure you want to delete this activity?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/activities/${activityId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        await loadData()
+      } else {
+        alert('Failed to delete activity')
+      }
+    } catch (error) {
+      console.error('Failed to delete activity:', error)
+      alert('Failed to delete activity')
+    }
+  }
+
   const handleGenerateSummary = async () => {
     setSummaryLoading(true)
     try {
@@ -77,9 +98,14 @@ export default function DailyLogPage() {
       if (response.ok) {
         const data = await response.json()
         setSummary(data)
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to generate summary:', errorData)
+        alert(`Failed to generate summary: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to generate summary:', error)
+      alert('Failed to generate summary. Please check the console for details.')
     } finally {
       setSummaryLoading(false)
     }
@@ -128,17 +154,19 @@ export default function DailyLogPage() {
               }
             }}
             disabled={isToday}
-            className="btn btn-ghost"
+            className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next →
           </button>
         </div>
       </div>
 
-      {/* Activity Input (only for today) */}
-      {isToday && (
+      {/* Activity Input (for today and past dates) */}
+      {!isToday && selectedDate > new Date() ? null : (
         <div>
-          <h2 className="text-xl font-semibold mb-4">Log Activity</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {isToday ? 'Log Activity' : 'Add Activity'}
+          </h2>
           <ActivityInput onSubmit={handleAddActivity} />
         </div>
       )}
@@ -154,6 +182,7 @@ export default function DailyLogPage() {
         ) : (
           <ActivityList
             activities={activities}
+            onDelete={handleDeleteActivity}
             emptyMessage="No activities logged for this day."
           />
         )}

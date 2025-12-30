@@ -83,11 +83,9 @@ CREATE POLICY "Users can update own activities"
   ON public.activities FOR UPDATE
   USING (auth.uid() = user_id);
 
--- Soft delete only - no hard deletes
-CREATE POLICY "Users can soft delete own activities"
-  ON public.activities FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (is_deleted = TRUE);
+CREATE POLICY "Users can delete own activities"
+  ON public.activities FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- =====================================================
 -- DAILY SUMMARIES TABLE

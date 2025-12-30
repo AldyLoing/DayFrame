@@ -7,6 +7,8 @@ import { SummaryCard } from '@/components/SummaryCard'
 import { format } from 'date-fns'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const user = await getCurrentUser()
   

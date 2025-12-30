@@ -9,6 +9,9 @@ import {
 import { format, subDays } from 'date-fns'
 import { env } from '@/lib/env'
 
+// Force dynamic to prevent static generation
+export const dynamic = 'force-dynamic'
+
 /**
  * Cron job to generate daily summaries for all users
  * Runs nightly at 2:00 AM

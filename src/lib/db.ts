@@ -1,4 +1,4 @@
-import { getSupabaseServer } from './supabase'
+import { getSupabaseServer } from './supabase/server-utils'
 import type { Activity, DailySummary, PeriodicReport, ChatHistory, ReportType } from '@/types/database'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
 

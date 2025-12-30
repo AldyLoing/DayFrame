@@ -204,6 +204,13 @@ export class AIModelRouter {
   ): Promise<ChatCompletionResponse> {
     const primaryModel = this.getPrimaryModel(taskType)
     const fallbackModel = this.getFallbackModel()
+    
+    // List of additional free models to try if primary and fallback fail
+    const emergencyModels = [
+      'mistralai/mistral-7b-instruct:free',
+      'nousresearch/hermes-3-llama-3.1-405b:free',
+      'microsoft/phi-3-medium-128k-instruct:free',
+    ]
 
     // Try primary model
     try {
@@ -223,6 +230,22 @@ export class AIModelRouter {
         })
       } catch (fallbackError) {
         console.error(`Fallback model ${fallbackModel} failed:`, fallbackError)
+        
+        // Try emergency models one by one
+        for (const emergencyModel of emergencyModels) {
+          try {
+            console.warn(`Trying emergency model: ${emergencyModel}`)
+            return await openrouter.chatCompletion({
+              ...options,
+              model: emergencyModel,
+            })
+          } catch (emergencyError) {
+            console.error(`Emergency model ${emergencyModel} failed:`, emergencyError)
+            // Continue to next model
+          }
+        }
+        
+        // All models failed
         throw new Error(
           'AI service temporarily unavailable. Please try again later.'
         )

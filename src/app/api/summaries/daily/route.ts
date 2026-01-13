@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Generating summary for date:', dateStr, 'parsed as:', date.toISOString())
 
-    // Get activities for the day
+    // Get activities for the day (will regenerate summary even if exists)
     const activities = await getActivitiesByDate(user.id, date)
 
     console.log('Found activities:', activities.length)
@@ -75,14 +75,40 @@ export async function POST(request: NextRequest) {
       content: activity.content,
     }))
 
-    // Generate summary using AI
+    // Generate summary using AI with fallback to manual summary
     const prompt = createDailySummaryPrompt(
       format(date, 'MMMM d, yyyy'),
       formattedActivities
     )
 
-    const aiResponse = await generateSummary(prompt, DAILY_SUMMARY_SYSTEM_PROMPT)
-    const summaryContent = parseAIJsonResponse(aiResponse) as any
+    let summaryContent: any
+    
+    try {
+      const aiResponse = await generateSummary(prompt, DAILY_SUMMARY_SYSTEM_PROMPT)
+      summaryContent = parseAIJsonResponse(aiResponse) as any
+    } catch (aiError: any) {
+      console.error('AI generation failed, using fallback summary:', aiError)
+      
+      // Generate simple structured summary without AI
+      const keywords = [...new Set(
+        activities.flatMap(a => 
+          a.content.toLowerCase()
+            .split(/\s+/)
+            .filter(w => w.length > 5 && !['untuk', 'dengan', 'adalah', 'menjadi', 'karena'].includes(w))
+        )
+      )].slice(0, 10)
+
+      const firstActivity = activities[0]
+      const lastActivity = activities[activities.length - 1]
+      
+      summaryContent = {
+        summary: `Hari ini mencatat ${activities.length} aktivitas dari ${format(new Date(firstActivity.activity_timestamp), 'h:mm a')} hingga ${format(new Date(lastActivity.activity_timestamp), 'h:mm a')}. ${activities.slice(0, 3).map(a => a.content.split('.')[0]).join('. ')}.`,
+        highlights: activities.slice(0, 5).map(a => a.content.split('.')[0].substring(0, 100)),
+        conclusion: `Total ${activities.length} aktivitas tercatat dengan berbagai kegiatan produktif sepanjang hari.`,
+        mood: 'productive',
+        keywords: keywords
+      }
+    }
 
     // Save summary to database
     const summary = await createDailySummary(
@@ -106,10 +132,11 @@ export async function POST(request: NextRequest) {
     }).catch(console.error)
 
     return NextResponse.json(summary, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('POST /api/summaries/daily error:', error)
+    const errorMessage = error.message || 'Failed to generate summary'
     return NextResponse.json(
-      { error: 'Failed to generate summary' },
+      { error: errorMessage },
       { status: 500 }
     )
   }

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const dateStr = format(yesterday, 'yyyy-MM-dd')
 
     // Get all users who have activities yesterday but no summary
-    const { data: activitiesWithoutSummary, error: queryError } = await supabase
+    const { data: activitiesWithoutSummary, error: queryError } = await (supabase as any)
       .from('activities')
       .select('user_id')
       .eq('activity_date', dateStr)
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (queryError) throw queryError
 
     // Get unique user IDs
-    const userIds = [...new Set(activitiesWithoutSummary?.map((a) => a.user_id) || [])]
+    const userIds = [...new Set((activitiesWithoutSummary || []).map((a: any) => a.user_id))]
 
     let successCount = 0
     let errorCount = 0
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     for (const userId of userIds) {
       try {
         // Check if summary already exists
-        const { data: existingSummary } = await supabase
+        const { data: existingSummary } = await (supabase as any)
           .from('daily_summaries')
           .select('id')
           .eq('user_id', userId)
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Get user's activities for yesterday
-        const { data: activities, error: activitiesError } = await supabase
+        const { data: activities, error: activitiesError } = await (supabase as any)
           .from('activities')
           .select('*')
           .eq('user_id', userId)
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         if (!activities || activities.length === 0) continue
 
         // Format activities for AI
-        const formattedActivities = activities.map((activity) => ({
+        const formattedActivities = (activities as any[]).map((activity) => ({
           timestamp: format(new Date(activity.activity_timestamp), 'h:mm a'),
           content: activity.content,
         }))
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         const summaryContent = parseAIJsonResponse(aiResponse)
 
         // Save summary
-        const { error: insertError } = await supabase
+        const { error: insertError } = await (supabase as any)
           .from('daily_summaries')
           .insert({
             user_id: userId,

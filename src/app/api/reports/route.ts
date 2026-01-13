@@ -19,7 +19,7 @@ import {
   createYearlyReportPrompt,
   parseAIJsonResponse,
 } from '@/lib/prompts'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns'
 import { env } from '@/lib/env'
 import type { ReportType } from '@/types/database'
 

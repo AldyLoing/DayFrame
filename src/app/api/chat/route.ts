@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       const queryEmbedding = await generateEmbedding(question)
 
       // Search for relevant content using vector similarity
-      const similarContent = await searchSimilarContent(
+      const similarContent: any = await searchSimilarContent(
         user.id,
         queryEmbedding,
         0.5, // Lower threshold for better recall
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       console.log('🔍 Vector search results:', similarContent?.length || 0)
 
       // If no results from vector search, fall back to direct database query
-      if (!similarContent || similarContent.length === 0) {
+      if (!similarContent || (Array.isArray(similarContent) && similarContent.length === 0)) {
         throw new Error('No vector results, using fallback')
       }
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       contextUsed = {
         query: question,
         mode: 'vector',
-        resultsCount: similarContent.length,
+        resultsCount: Array.isArray(similarContent) ? similarContent.length : 0,
         contentIds: similarContent.map((item: any) => item.content_id),
       }
 
@@ -145,7 +145,6 @@ Untuk memulai:
         const isAskingProgress = /progress|kemajuan|perkembangan|bagaimana/i.test(questionLower)
         const isAskingCount = /berapa|how many|jumlah|total/i.test(questionLower)
         const isAskingTrend = /trend|tren|perubahan|naik|turun/i.test(questionLower)
-        const isAskingSummary = /ringkas|summary|rangkum|kesimpulan/i.test(questionLower)
         
         // Helper: Calculate activity keywords
         const extractKeywords = (acts: typeof activities) => {

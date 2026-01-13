@@ -42,7 +42,7 @@ export async function createClient() {
 export function createAdminClient() {
   const { createClient: createSupabaseClient } = require('@supabase/supabase-js')
   
-  return createSupabaseClient<Database>(
+  return createSupabaseClient(
     env.supabase.url,
     env.supabase.serviceRoleKey,
     {
